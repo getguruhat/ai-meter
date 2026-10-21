@@ -92,7 +92,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text("Version 1.4")
+            Text("Version 1.5")
                 .foregroundStyle(.secondary)
             Text("A GuruHat open-source tool")
                 .font(.headline)
@@ -127,8 +127,6 @@ enum FetchResult {
 
 final class UsageModel: ObservableObject {
     private static let providerKey = "provider"
-    /// A reading older than this is shown as approximate ("AI ~92%").
-    private static let staleAfter: TimeInterval = 15 * 60
 
     @Published var provider: UsageProvider = UsageProvider(rawValue: UserDefaults.standard.string(forKey: providerKey) ?? "") ?? .codex {
         didSet {
@@ -173,14 +171,7 @@ final class UsageModel: ObservableObject {
     }
     deinit { timer?.invalidate() }
 
-    var isStale: Bool {
-        guard let updated else { return true }
-        return Date().timeIntervalSince(updated) > UsageModel.staleAfter
-    }
-    var menuTitle: String {
-        guard let remaining else { return "AI —" }
-        return isStale ? "AI ~\(remaining)%" : "AI \(remaining)%"
-    }
+    var menuTitle: String { remaining.map { "AI \($0)%" } ?? "AI —" }
     var displayText: String {
         remaining.map { "AI usage remaining: \($0)%" } ?? "AI usage unavailable"
     }
@@ -266,13 +257,17 @@ final class UsageModel: ObservableObject {
     /// Claude Code's usage endpoint and the OAuth token it accepts. The response has
     /// `five_hour` and `seven_day` windows, each with `utilization` (percent used) and `resets_at`.
     private static func fetchClaude() -> FetchResult {
-        guard let credentials = claudeCredentials() else {
+        guard var credentials = claudeCredentials() else {
             return .signIn("No Claude Code sign-in found. Sign in to Claude Code first.")
         }
-        // Claude Code renews its sign-in only while it runs. Asking with an expired token
-        // just spends the usage endpoint's small request allowance.
+        // Claude Code renews its sign-in only while it runs, and the desktop app keeps a
+        // separate one, so the saved token often expires. Asking with it would just spend
+        // the usage endpoint's small request allowance, so renew it first.
         if let expires = credentials.expires, expires < Date() {
-            return .signIn("Claude sign-in expired at \(expires.formatted(date: .omitted, time: .shortened)). Use Claude Code once to renew it.")
+            guard renewClaudeSignIn(), let renewed = claudeCredentials(), (renewed.expires ?? .distantFuture) > Date() else {
+                return .signIn("Claude sign-in expired at \(expires.formatted(date: .omitted, time: .shortened)). Run claude in Terminal once to renew it.")
+            }
+            credentials = renewed
         }
         let reply = request(url: "https://api.anthropic.com/api/oauth/usage",
                             headers: ["Accept: application/json",
@@ -283,6 +278,33 @@ final class UsageModel: ObservableObject {
         guard let window = reply?.json?["five_hour"] as? [String: Any],
               let used = number(window["utilization"]) else { return .unavailable }
         return .reading(max(0, 100 - Int(used.rounded())), date(window["resets_at"]))
+    }
+
+    private static var lastRenewal: Date?
+
+    /// Runs `claude doctor`, which makes the Claude Code CLI renew its saved sign-in
+    /// without sending a prompt (so it uses none of your allowance). Tried at most once
+    /// every 10 minutes; returns whether it ran.
+    private static func renewClaudeSignIn() -> Bool {
+        if let lastRenewal, Date().timeIntervalSince(lastRenewal) < 600 { return false }
+        lastRenewal = Date()
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let candidates = ["\(home)/.local/bin/claude", "\(home)/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
+        guard let cli = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return false }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: cli)
+        process.arguments = ["doctor"]
+        var environment = ProcessInfo.processInfo.environment
+        environment["PATH"] = "\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        process.environment = environment
+        process.currentDirectoryURL = URL(fileURLWithPath: home)
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do { try process.run() } catch { return false }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 60) { if process.isRunning { process.terminate() } }
+        process.waitUntilExit()
+        return true
     }
 
     /// Claude Code stores its login in the macOS Keychain ("Claude Code-credentials").
