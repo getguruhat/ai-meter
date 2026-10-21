@@ -1,0 +1,5 @@
+.build/
+.DS_Store
+AI Meter.app/
+AI-Meter_*.zip
+*.dmg
