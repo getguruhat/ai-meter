@@ -10,6 +10,7 @@ AI Meter is a free, open-source GuruHat menu-bar tool for macOS. It displays the
 - **Claude:** the five-hour window from the Claude Code sign-in stored in the macOS Keychain (`Claude Code-credentials`), or `~/.claude/.credentials.json` if the Keychain entry is not found.
 
 Website: https://guruhat.com/apps/ai-meter/
+Windows version: https://github.com/getguruhat/ai-meter-windows
 GitHub organization: https://github.com/getguruhat
 
 ## Download
