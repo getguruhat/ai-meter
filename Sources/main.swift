@@ -16,6 +16,10 @@ struct AIMeterApp: App {
                 .pickerStyle(.segmented)
                 Text(usage.displayText).font(.headline)
                 if let reset = usage.resetText { Text("Resets \(reset)").font(.caption).foregroundStyle(.secondary) }
+                if let updated = usage.updatedText { Text(updated).font(.caption).foregroundStyle(.secondary) }
+                if let problem = usage.problem {
+                    Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
                 Divider()
                 HStack(spacing: 14) {
                     Button { usage.refresh() } label: {
@@ -88,7 +92,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text("Version 1.3")
+            Text("Version 1.4")
                 .foregroundStyle(.secondary)
             Text("A GuruHat open-source tool")
                 .font(.headline)
@@ -112,18 +116,34 @@ enum UsageProvider: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// What one usage check produced. Anything other than a reading leaves the last good
+/// reading on screen, marked with when it was taken and why it couldn't be updated.
+enum FetchResult {
+    case reading(Int, Date?)
+    case rateLimited(until: Date)
+    case signIn(String)
+    case unavailable
+}
+
 final class UsageModel: ObservableObject {
     private static let providerKey = "provider"
+    /// A reading older than this is shown as approximate ("AI ~92%").
+    private static let staleAfter: TimeInterval = 15 * 60
 
     @Published var provider: UsageProvider = UsageProvider(rawValue: UserDefaults.standard.string(forKey: providerKey) ?? "") ?? .codex {
         didSet {
             UserDefaults.standard.set(provider.rawValue, forKey: UsageModel.providerKey)
+            problem = nil
             loadCached()
             refresh()
         }
     }
     @Published var remaining: Int?
     @Published var reset: Date?
+    @Published var updated: Date?
+    @Published var problem: String?
+    /// When a provider asked us to back off, no request is sent to it before this time.
+    private var retryAt: [UsageProvider: Date] = [:]
     private var timer: Timer?
 
     init() {
@@ -141,108 +161,186 @@ final class UsageModel: ObservableObject {
         remaining = defaults.object(forKey: cacheKey("remaining")) as? Int
         let resetTime = defaults.double(forKey: cacheKey("reset"))
         reset = resetTime > 0 ? Date(timeIntervalSince1970: resetTime) : nil
+        let updatedTime = defaults.double(forKey: cacheKey("updated"))
+        updated = updatedTime > 0 ? Date(timeIntervalSince1970: updatedTime) : nil
     }
 
     private func saveCached() {
         let defaults = UserDefaults.standard
         defaults.set(remaining, forKey: cacheKey("remaining"))
         defaults.set(reset?.timeIntervalSince1970 ?? 0, forKey: cacheKey("reset"))
+        defaults.set(updated?.timeIntervalSince1970 ?? 0, forKey: cacheKey("updated"))
     }
     deinit { timer?.invalidate() }
 
-    var menuTitle: String { remaining.map { "AI \($0)%" } ?? "AI —" }
+    var isStale: Bool {
+        guard let updated else { return true }
+        return Date().timeIntervalSince(updated) > UsageModel.staleAfter
+    }
+    var menuTitle: String {
+        guard let remaining else { return "AI —" }
+        return isStale ? "AI ~\(remaining)%" : "AI \(remaining)%"
+    }
     var displayText: String {
         remaining.map { "AI usage remaining: \($0)%" } ?? "AI usage unavailable"
     }
     var resetText: String? { guard let reset else { return nil }; return reset.formatted(date: .abbreviated, time: .shortened) }
+    var updatedText: String? {
+        guard remaining != nil else { return nil }
+        guard let updated else { return "Not updated recently" }
+        return "Updated \(updated.formatted(date: Calendar.current.isDateInToday(updated) ? .omitted : .abbreviated, time: .shortened))"
+    }
 
     /// Fetches usage for the selected provider on a background queue and publishes the result on the main queue.
     func refresh() {
         let current = provider
+        if let until = retryAt[current], until > Date() {
+            problem = UsageModel.rateLimitText(current, until)
+            objectWillChange.send()
+            return
+        }
         DispatchQueue.global(qos: .utility).async {
-            let result: (Int?, Date?)
+            let result: FetchResult
             switch current {
             case .codex: result = UsageModel.fetchCodex()
             case .claude: result = UsageModel.fetchClaude()
             }
             DispatchQueue.main.async {
                 guard self.provider == current else { return }
-                // A failed request (e.g. rate limited) keeps the last good reading, unless its window has already reset.
-                guard let value = result.0 else {
-                    if let reset = self.reset, reset < Date() { self.remaining = nil; self.reset = nil; self.saveCached() }
+                switch result {
+                case let .reading(value, reset):
+                    self.remaining = value
+                    self.reset = reset
+                    self.updated = Date()
+                    self.problem = nil
+                    self.retryAt[current] = nil
+                    self.saveCached()
                     return
+                case let .rateLimited(until):
+                    self.retryAt[current] = until
+                    self.problem = UsageModel.rateLimitText(current, until)
+                case let .signIn(message):
+                    self.problem = message
+                case .unavailable:
+                    self.problem = "Couldn't get usage from \(current.rawValue). Trying again in 5 minutes."
                 }
-                self.remaining = value
-                self.reset = result.1
-                self.saveCached()
+                // A failed check keeps the last good reading, unless its window has already reset.
+                if let reset = self.reset, reset < Date() {
+                    self.remaining = nil
+                    self.reset = nil
+                    self.updated = nil
+                    self.saveCached()
+                }
             }
         }
     }
 
+    private static func rateLimitText(_ provider: UsageProvider, _ until: Date) -> String {
+        "\(provider.rawValue) is limiting usage checks. Next check at \(until.formatted(date: .omitted, time: .shortened))."
+    }
+
     // MARK: - Codex
 
-    private static func fetchCodex() -> (Int?, Date?) {
+    private static func fetchCodex() -> FetchResult {
         let authURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/auth.json")
         guard let authData = try? Data(contentsOf: authURL),
               let auth = try? JSONSerialization.jsonObject(with: authData) as? [String: Any],
               let tokens = auth["tokens"] as? [String: Any],
-              let token = tokens["access_token"] as? String else { return (nil, nil) }
+              let token = tokens["access_token"] as? String else {
+            return .signIn("No Codex sign-in found. Run codex and sign in with ChatGPT.")
+        }
         let accountID = tokens["account_id"] as? String ?? ""
-        guard let json = curlJSON(url: "https://chatgpt.com/backend-api/wham/usage",
-                                  headers: ["Accept: application/json",
-                                            "Authorization: Bearer \(token)",
-                                            "ChatGPT-Account-Id: \(accountID)"]),
-              let limit = json["rate_limit"] as? [String: Any],
+        let reply = request(url: "https://chatgpt.com/backend-api/wham/usage",
+                            headers: ["Accept: application/json",
+                                      "Authorization: Bearer \(token)",
+                                      "ChatGPT-Account-Id: \(accountID)"])
+        if let failure = failure(reply, expired: "Codex sign-in expired. Run codex once to renew it.") { return failure }
+        guard let limit = reply?.json?["rate_limit"] as? [String: Any],
               let primary = limit["primary_window"] as? [String: Any],
-              let used = number(primary["used_percent"]) else { return (nil, nil) }
-        return (max(0, 100 - Int(used)), date(primary["reset_at"]))
+              let used = number(primary["used_percent"]) else { return .unavailable }
+        return .reading(max(0, 100 - Int(used)), date(primary["reset_at"]))
     }
 
     // MARK: - Claude
 
     /// Claude Code's usage endpoint and the OAuth token it accepts. The response has
     /// `five_hour` and `seven_day` windows, each with `utilization` (percent used) and `resets_at`.
-    private static func fetchClaude() -> (Int?, Date?) {
-        guard let token = claudeAccessToken(),
-              let json = curlJSON(url: "https://api.anthropic.com/api/oauth/usage",
-                                  headers: ["Accept: application/json",
-                                            "Authorization: Bearer \(token)",
-                                            "anthropic-version: 2023-06-01",
-                                            "anthropic-beta: oauth-2025-04-20"]),
-              let window = json["five_hour"] as? [String: Any],
-              let used = number(window["utilization"]) else { return (nil, nil) }
-        return (max(0, 100 - Int(used.rounded())), date(window["resets_at"]))
+    private static func fetchClaude() -> FetchResult {
+        guard let credentials = claudeCredentials() else {
+            return .signIn("No Claude Code sign-in found. Sign in to Claude Code first.")
+        }
+        // Claude Code renews its sign-in only while it runs. Asking with an expired token
+        // just spends the usage endpoint's small request allowance.
+        if let expires = credentials.expires, expires < Date() {
+            return .signIn("Claude sign-in expired at \(expires.formatted(date: .omitted, time: .shortened)). Use Claude Code once to renew it.")
+        }
+        let reply = request(url: "https://api.anthropic.com/api/oauth/usage",
+                            headers: ["Accept: application/json",
+                                      "Authorization: Bearer \(credentials.token)",
+                                      "anthropic-version: 2023-06-01",
+                                      "anthropic-beta: oauth-2025-04-20"])
+        if let failure = failure(reply, expired: "Claude sign-in expired. Use Claude Code once to renew it.") { return failure }
+        guard let window = reply?.json?["five_hour"] as? [String: Any],
+              let used = number(window["utilization"]) else { return .unavailable }
+        return .reading(max(0, 100 - Int(used.rounded())), date(window["resets_at"]))
     }
 
     /// Claude Code stores its login in the macOS Keychain ("Claude Code-credentials").
     /// Falls back to ~/.claude/.credentials.json when the Keychain entry is missing.
-    private static func claudeAccessToken() -> String? {
+    private static func claudeCredentials() -> (token: String, expires: Date?)? {
         if let data = run("/usr/bin/security", ["find-generic-password", "-s", "Claude Code-credentials", "-w"]),
-           let token = oauthToken(from: data) {
-            return token
+           let credentials = oauthCredentials(from: data) {
+            return credentials
         }
         let fileURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/.credentials.json")
-        if let data = try? Data(contentsOf: fileURL), let token = oauthToken(from: data) {
-            return token
+        if let data = try? Data(contentsOf: fileURL), let credentials = oauthCredentials(from: data) {
+            return credentials
         }
         return nil
     }
 
-    private static func oauthToken(from data: Data) -> String? {
+    private static func oauthCredentials(from data: Data) -> (token: String, expires: Date?)? {
         guard let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let oauth = root["claudeAiOauth"] as? [String: Any],
               let token = oauth["accessToken"] as? String, !token.isEmpty else { return nil }
-        return token
+        return (token, date(oauth["expiresAt"]))
     }
 
     // MARK: - Helpers
 
-    private static func curlJSON(url: String, headers: [String]) -> [String: Any]? {
-        var args = ["-sS", "--max-time", "15"]
+    private struct Reply {
+        let status: Int
+        let retryAfter: String
+        let json: [String: Any]?
+    }
+
+    /// Calls the endpoint with the system curl and returns the status code, the
+    /// Retry-After header, and the JSON body.
+    private static func request(url: String, headers: [String]) -> Reply? {
+        var args = ["-sS", "--max-time", "15", "-w", "\n%{http_code} %header{retry-after}"]
         for header in headers { args += ["-H", header] }
         args.append(url)
-        guard let data = run("/usr/bin/curl", args) else { return nil }
-        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        guard let data = run("/usr/bin/curl", args), let text = String(data: data, encoding: .utf8),
+              let split = text.range(of: "\n", options: .backwards) else { return nil }
+        let meta = text[split.upperBound...].split(separator: " ", maxSplits: 1)
+        let body = Data(text[..<split.lowerBound].utf8)
+        return Reply(status: Int(meta.first ?? "") ?? 0,
+                     retryAfter: meta.count > 1 ? String(meta[1]).trimmingCharacters(in: .whitespacesAndNewlines) : "",
+                     json: (try? JSONSerialization.jsonObject(with: body)) as? [String: Any])
+    }
+
+    /// Turns an unsuccessful reply into a result, or returns nil for a 2xx reply.
+    private static func failure(_ reply: Reply?, expired: String) -> FetchResult? {
+        guard let reply else { return .unavailable }
+        switch reply.status {
+        case 200..<300: return nil
+        case 429:
+            // Honor Retry-After (seconds), within 1 minute to 2 hours; otherwise wait 15 minutes.
+            let seconds = Double(reply.retryAfter).map { min(max($0, 60), 7200) } ?? 900
+            return .rateLimited(until: Date().addingTimeInterval(seconds))
+        case 401, 403: return .signIn(expired)
+        default: return .unavailable
+        }
     }
 
     /// Runs a command and returns its stdout, or nil if it fails or exits non-zero.
