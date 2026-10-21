@@ -16,7 +16,6 @@ struct AIMeterApp: App {
                 .pickerStyle(.segmented)
                 Text(usage.displayText).font(.headline)
                 if let reset = usage.resetText { Text("Resets \(reset)").font(.caption).foregroundStyle(.secondary) }
-                if let updated = usage.updatedText { Text(updated).font(.caption).foregroundStyle(.secondary) }
                 if let problem = usage.problem {
                     Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
@@ -92,7 +91,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text("Version 1.5")
+            Text("Version 1.5.1")
                 .foregroundStyle(.secondary)
             Text("A GuruHat open-source tool")
                 .font(.headline)
@@ -117,7 +116,7 @@ enum UsageProvider: String, CaseIterable, Identifiable {
 }
 
 /// What one usage check produced. Anything other than a reading leaves the last good
-/// reading on screen, marked with when it was taken and why it couldn't be updated.
+/// reading on screen, with the reason it couldn't be updated shown in the menu.
 enum FetchResult {
     case reading(Int, Date?)
     case rateLimited(until: Date)
@@ -138,7 +137,6 @@ final class UsageModel: ObservableObject {
     }
     @Published var remaining: Int?
     @Published var reset: Date?
-    @Published var updated: Date?
     @Published var problem: String?
     /// When a provider asked us to back off, no request is sent to it before this time.
     private var retryAt: [UsageProvider: Date] = [:]
@@ -159,15 +157,12 @@ final class UsageModel: ObservableObject {
         remaining = defaults.object(forKey: cacheKey("remaining")) as? Int
         let resetTime = defaults.double(forKey: cacheKey("reset"))
         reset = resetTime > 0 ? Date(timeIntervalSince1970: resetTime) : nil
-        let updatedTime = defaults.double(forKey: cacheKey("updated"))
-        updated = updatedTime > 0 ? Date(timeIntervalSince1970: updatedTime) : nil
     }
 
     private func saveCached() {
         let defaults = UserDefaults.standard
         defaults.set(remaining, forKey: cacheKey("remaining"))
         defaults.set(reset?.timeIntervalSince1970 ?? 0, forKey: cacheKey("reset"))
-        defaults.set(updated?.timeIntervalSince1970 ?? 0, forKey: cacheKey("updated"))
     }
     deinit { timer?.invalidate() }
 
@@ -176,11 +171,6 @@ final class UsageModel: ObservableObject {
         remaining.map { "AI usage remaining: \($0)%" } ?? "AI usage unavailable"
     }
     var resetText: String? { guard let reset else { return nil }; return reset.formatted(date: .abbreviated, time: .shortened) }
-    var updatedText: String? {
-        guard remaining != nil else { return nil }
-        guard let updated else { return "Not updated recently" }
-        return "Updated \(updated.formatted(date: Calendar.current.isDateInToday(updated) ? .omitted : .abbreviated, time: .shortened))"
-    }
 
     /// Fetches usage for the selected provider on a background queue and publishes the result on the main queue.
     func refresh() {
@@ -202,7 +192,6 @@ final class UsageModel: ObservableObject {
                 case let .reading(value, reset):
                     self.remaining = value
                     self.reset = reset
-                    self.updated = Date()
                     self.problem = nil
                     self.retryAt[current] = nil
                     self.saveCached()
@@ -219,7 +208,6 @@ final class UsageModel: ObservableObject {
                 if let reset = self.reset, reset < Date() {
                     self.remaining = nil
                     self.reset = nil
-                    self.updated = nil
                     self.saveCached()
                 }
             }
