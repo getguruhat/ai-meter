@@ -143,7 +143,7 @@ struct Strings {
             var s = Strings()
             s.provider = "プロバイダ"
             s.usageRemaining = "AI の残り使用量: {0}%"
-            s.unavailable = "AI の使用状況を取得できません"
+            s.unavailable = "AI 使用量を取得できません"
             s.resets = "リセット: {0}"
             s.troubleshooting = "トラブルシューティングガイドを開く ›"
             s.refresh = "更新"
