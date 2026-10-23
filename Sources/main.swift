@@ -94,7 +94,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text(Strings.fill(Strings.current.version, "1.5.2"))
+            Text(Strings.fill(Strings.current.version, "1.5.3"))
                 .foregroundStyle(.secondary)
             Text(Strings.current.tagline)
                 .font(.headline)
