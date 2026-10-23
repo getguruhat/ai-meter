@@ -8,18 +8,18 @@ struct AIMeterApp: App {
     var body: some Scene {
         MenuBarExtra {
             VStack(alignment: .leading, spacing: 10) {
-                Picker("Provider", selection: $usage.provider) {
+                Picker(Strings.current.provider, selection: $usage.provider) {
                     ForEach(UsageProvider.allCases) { provider in
                         Text(provider.rawValue).tag(provider)
                     }
                 }
                 .pickerStyle(.segmented)
                 Text(usage.displayText).font(.headline)
-                if let reset = usage.resetText { Text("Resets \(reset)").font(.caption).foregroundStyle(.secondary) }
+                if let reset = usage.resetText { Text(Strings.fill(Strings.current.resets, reset)).font(.caption).foregroundStyle(.secondary) }
                 if let problem = usage.problem {
                     Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                     if usage.needsSignIn {
-                        Link("Open the troubleshooting guide ›", destination: usage.troubleshootingURL).font(.caption)
+                        Link(Strings.current.troubleshooting, destination: usage.troubleshootingURL).font(.caption)
                     }
                 }
                 Divider()
@@ -28,22 +28,22 @@ struct AIMeterApp: App {
                         Image(systemName: "arrow.clockwise")
                             .frame(width: 42, height: 30)
                     }
-                    .help("Refresh")
-                    .accessibilityLabel("Refresh")
+                    .help(Strings.current.refresh)
+                    .accessibilityLabel(Strings.current.refresh)
 
                     Button { AboutWindowController.shared.show() } label: {
                         Image(systemName: "info.circle")
                             .frame(width: 42, height: 30)
                     }
-                    .help("About AI Meter")
-                    .accessibilityLabel("About AI Meter")
+                    .help(Strings.current.about)
+                    .accessibilityLabel(Strings.current.about)
 
                     Button { NSApplication.shared.terminate(nil) } label: {
                         Image(systemName: "power")
                             .frame(width: 42, height: 30)
                     }
-                    .help("Quit")
-                    .accessibilityLabel("Quit")
+                    .help(Strings.current.quit)
+                    .accessibilityLabel(Strings.current.quit)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
             }.padding(12).frame(width: 220)
@@ -71,7 +71,7 @@ final class AboutWindowController {
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
-        window.title = "About AI Meter"
+        window.title = Strings.current.about
         window.isReleasedWhenClosed = false
         window.center()
         window.contentView = hosting
@@ -94,16 +94,16 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text("Version 1.5.2")
+            Text(Strings.fill(Strings.current.version, "1.5.2"))
                 .foregroundStyle(.secondary)
-            Text("A GuruHat open-source tool")
+            Text(Strings.current.tagline)
                 .font(.headline)
             Divider().padding(.vertical, 6)
             Link(destination: donationURL) {
-                Label("Support AI Meter", systemImage: "heart.fill")
+                Label(Strings.current.support, systemImage: "heart.fill")
                     .frame(maxWidth: .infinity)
             }
-            Text("Thank you for supporting this project!")
+            Text(Strings.current.thanks)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -178,7 +178,7 @@ final class UsageModel: ObservableObject {
 
     var menuTitle: String { remaining.map { "AI \($0)%" } ?? "AI —" }
     var displayText: String {
-        remaining.map { "AI usage remaining: \($0)%" } ?? "AI usage unavailable"
+        remaining.map { Strings.fill(Strings.current.usageRemaining, $0) } ?? Strings.current.unavailable
     }
     var resetText: String? { guard let reset else { return nil }; return reset.formatted(date: .abbreviated, time: .shortened) }
 
@@ -214,7 +214,7 @@ final class UsageModel: ObservableObject {
                 case let .signIn(message):
                     self.problem = message
                 case .unavailable:
-                    self.problem = "Couldn't get usage from \(current.rawValue). Trying again in 5 minutes."
+                    self.problem = Strings.fill(Strings.current.unreachable, current.rawValue)
                 }
                 // A failed check keeps the last good reading, unless its window has already reset.
                 if let reset = self.reset, reset < Date() {
@@ -227,7 +227,7 @@ final class UsageModel: ObservableObject {
     }
 
     private static func rateLimitText(_ provider: UsageProvider, _ until: Date) -> String {
-        "\(provider.rawValue) is limiting usage checks. Next check at \(until.formatted(date: .omitted, time: .shortened))."
+        Strings.fill(Strings.current.rateLimited, provider.rawValue, until.formatted(date: .omitted, time: .shortened))
     }
 
     // MARK: - Codex
@@ -238,14 +238,14 @@ final class UsageModel: ObservableObject {
               let auth = try? JSONSerialization.jsonObject(with: authData) as? [String: Any],
               let tokens = auth["tokens"] as? [String: Any],
               let token = tokens["access_token"] as? String else {
-            return .signIn("No Codex sign-in found. Run codex and sign in with ChatGPT.")
+            return .signIn(Strings.current.codexNoSignIn)
         }
         let accountID = tokens["account_id"] as? String ?? ""
         let reply = request(url: "https://chatgpt.com/backend-api/wham/usage",
                             headers: ["Accept: application/json",
                                       "Authorization: Bearer \(token)",
                                       "ChatGPT-Account-Id: \(accountID)"])
-        if let failure = failure(reply, expired: "Codex sign-in expired. Run codex once to renew it.") { return failure }
+        if let failure = failure(reply, expired: Strings.current.codexExpired) { return failure }
         guard let limit = reply?.json?["rate_limit"] as? [String: Any],
               let primary = limit["primary_window"] as? [String: Any],
               let used = number(primary["used_percent"]) else { return .unavailable }
@@ -258,14 +258,14 @@ final class UsageModel: ObservableObject {
     /// `five_hour` and `seven_day` windows, each with `utilization` (percent used) and `resets_at`.
     private static func fetchClaude() -> FetchResult {
         guard var credentials = claudeCredentials() else {
-            return .signIn("No Claude Code sign-in found in Terminal. Signing in to the Claude app isn't enough.")
+            return .signIn(Strings.current.claudeNoSignIn)
         }
         // Claude Code renews its sign-in only while it runs, and the desktop app keeps a
         // separate one, so the saved token often expires. Asking with it would just spend
         // the usage endpoint's small request allowance, so renew it first.
         if let expires = credentials.expires, expires < Date() {
             guard renewClaudeSignIn(), let renewed = claudeCredentials(), (renewed.expires ?? .distantFuture) > Date() else {
-                return .signIn("Claude sign-in expired at \(expires.formatted(date: .omitted, time: .shortened)). Run claude in Terminal once to renew it.")
+                return .signIn(Strings.fill(Strings.current.claudeExpiredAt, expires.formatted(date: .omitted, time: .shortened)))
             }
             credentials = renewed
         }
@@ -274,7 +274,7 @@ final class UsageModel: ObservableObject {
                                       "Authorization: Bearer \(credentials.token)",
                                       "anthropic-version: 2023-06-01",
                                       "anthropic-beta: oauth-2025-04-20"])
-        if let failure = failure(reply, expired: "Claude sign-in expired. Use Claude Code once to renew it.") { return failure }
+        if let failure = failure(reply, expired: Strings.current.claudeExpired) { return failure }
         guard let window = reply?.json?["five_hour"] as? [String: Any],
               let used = number(window["utilization"]) else { return .unavailable }
         return .reading(max(0, 100 - Int(used.rounded())), date(window["resets_at"]))
