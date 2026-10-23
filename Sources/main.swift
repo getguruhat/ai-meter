@@ -18,6 +18,9 @@ struct AIMeterApp: App {
                 if let reset = usage.resetText { Text("Resets \(reset)").font(.caption).foregroundStyle(.secondary) }
                 if let problem = usage.problem {
                     Text(problem).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                    if usage.needsSignIn {
+                        Link("Open the troubleshooting guide ›", destination: usage.troubleshootingURL).font(.caption)
+                    }
                 }
                 Divider()
                 HStack(spacing: 14) {
@@ -91,7 +94,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text("Version 1.5.1")
+            Text("Version 1.5.2")
                 .foregroundStyle(.secondary)
             Text("A GuruHat open-source tool")
                 .font(.headline)
@@ -131,6 +134,7 @@ final class UsageModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(provider.rawValue, forKey: UsageModel.providerKey)
             problem = nil
+            needsSignIn = false
             loadCached()
             refresh()
         }
@@ -138,6 +142,12 @@ final class UsageModel: ObservableObject {
     @Published var remaining: Int?
     @Published var reset: Date?
     @Published var problem: String?
+    /// True when the problem is a missing or expired sign-in, so the menu links to the troubleshooting guide.
+    @Published var needsSignIn = false
+    /// The troubleshooting guide, opened at the Codex section when Codex is selected.
+    var troubleshootingURL: URL {
+        URL(string: "https://guruhat.com/apps/ai-meter/troubleshooting/" + (provider == .codex ? "#codex" : ""))!
+    }
     /// When a provider asked us to back off, no request is sent to it before this time.
     private var retryAt: [UsageProvider: Date] = [:]
     private var timer: Timer?
@@ -177,6 +187,7 @@ final class UsageModel: ObservableObject {
         let current = provider
         if let until = retryAt[current], until > Date() {
             problem = UsageModel.rateLimitText(current, until)
+            needsSignIn = false
             objectWillChange.send()
             return
         }
@@ -188,6 +199,7 @@ final class UsageModel: ObservableObject {
             }
             DispatchQueue.main.async {
                 guard self.provider == current else { return }
+                if case .signIn = result { self.needsSignIn = true } else { self.needsSignIn = false }
                 switch result {
                 case let .reading(value, reset):
                     self.remaining = value
@@ -246,7 +258,7 @@ final class UsageModel: ObservableObject {
     /// `five_hour` and `seven_day` windows, each with `utilization` (percent used) and `resets_at`.
     private static func fetchClaude() -> FetchResult {
         guard var credentials = claudeCredentials() else {
-            return .signIn("No Claude Code sign-in found. Sign in to Claude Code first.")
+            return .signIn("No Claude Code sign-in found in Terminal. Signing in to the Claude app isn't enough.")
         }
         // Claude Code renews its sign-in only while it runs, and the desktop app keeps a
         // separate one, so the saved token often expires. Asking with it would just spend

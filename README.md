@@ -29,7 +29,7 @@ AI Meter is currently built for Apple silicon Macs. The release package includes
 
 - macOS 13 or later
 - Swift 5.9 or later (the package uses Swift Package Manager)
-- A signed-in Codex/ChatGPT session (`~/.codex/auth.json`) for the Codex provider, and/or a signed-in Claude Code session for the Claude provider
+- A signed-in Codex/ChatGPT session (`~/.codex/auth.json`) for the Codex provider, and/or a signed-in Claude Code session for the Claude provider ([troubleshooting](https://guruhat.com/apps/ai-meter/troubleshooting/))
 
 Claude Code renews its saved sign-in only while the `claude` command runs (the Claude desktop app keeps a separate one). When the saved sign-in has expired, AI Meter runs `claude doctor` in the background, at most every 10 minutes, so the CLI renews it. That sends no prompt and uses none of your allowance.
 
