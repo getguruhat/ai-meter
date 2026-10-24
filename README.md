@@ -2,7 +2,7 @@
 
 **Your remaining Claude Code or Codex usage, right in the Mac menu bar.**
 
-![AI Meter in the macOS menu bar showing 81% of Claude usage remaining](https://guruhat.com/assets/ai-meter/ai-meter-hero-macos.webp)
+![AI Meter in the macOS menu bar showing 81% of Claude usage remaining](docs/ai-meter-menu.png)
 
 AI Meter is a free, open-source GuruHat menu-bar tool for macOS. It displays the remaining AI allowance for either Codex or Claude, depending on the provider selected in the menu, and refreshes every five minutes. It reads your existing local sign-in through the system `curl` command; if a provider changes its usage endpoint, the display will show `AI —` until updated.
 
