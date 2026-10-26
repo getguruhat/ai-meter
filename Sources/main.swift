@@ -4,6 +4,16 @@ import AppKit
 @main
 struct AIMeterApp: App {
     @StateObject private var usage = UsageModel()
+    @StateObject private var updates: UpdateChecker
+
+    init() {
+        let text = Strings.current
+        let updates = UpdateChecker(appName: "AI Meter", repo: "getguruhat/ai-meter",
+                                    wording: .init(title: text.updateTitle, message: text.updateMessage,
+                                                   download: text.download, later: text.later))
+        updates.start()
+        _updates = StateObject(wrappedValue: updates)
+    }
 
     var body: some Scene {
         MenuBarExtra {
@@ -21,6 +31,10 @@ struct AIMeterApp: App {
                     if usage.needsSignIn {
                         Link(Strings.current.troubleshooting, destination: usage.troubleshootingURL).font(.caption)
                     }
+                }
+                if let update = updates.available {
+                    Link(Strings.fill(Strings.current.updateTitle, "AI Meter", update.version) + " ›", destination: update.page)
+                        .font(.caption)
                 }
                 Divider()
                 HStack(spacing: 14) {

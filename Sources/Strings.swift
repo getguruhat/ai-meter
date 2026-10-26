@@ -45,6 +45,10 @@ struct Strings {
     var claudeExpired = "Claude sign-in expired. Use Claude Code once to renew it."
     var unreachable = "Couldn't get usage from {0}. Trying again in 5 minutes."
     var rateLimited = "{0} is limiting usage checks. Next check at {1}."
+    var updateTitle = "{0} {1} is available"
+    var updateMessage = "You have version {0}. Download the new version from GitHub?"
+    var download = "Download"
+    var later = "Later"
 
     private static let all: [String: Strings] = [
         "es": {
@@ -68,6 +72,10 @@ struct Strings {
             s.claudeExpired = "El inicio de sesión de Claude caducó. Usa Claude Code una vez para renovarlo."
             s.unreachable = "No se pudo obtener el uso de {0}. Se reintentará en 5 minutos."
             s.rateLimited = "{0} está limitando las consultas de uso. Próxima consulta a las {1}."
+            s.updateTitle = "{0} {1} está disponible"
+            s.updateMessage = "Tienes la versión {0}. ¿Quieres descargar la nueva versión desde GitHub?"
+            s.download = "Descargar"
+            s.later = "Más tarde"
             return s
         }(),
         "de": {
@@ -91,6 +99,10 @@ struct Strings {
             s.claudeExpired = "Claude-Anmeldung abgelaufen. Verwenden Sie Claude Code einmal, um sie zu erneuern."
             s.unreachable = "Nutzung von {0} konnte nicht abgerufen werden. Neuer Versuch in 5 Minuten."
             s.rateLimited = "{0} begrenzt die Nutzungsabfragen. Nächste Abfrage um {1}."
+            s.updateTitle = "{0} {1} ist verfügbar"
+            s.updateMessage = "Sie haben Version {0}. Möchten Sie die neue Version von GitHub herunterladen?"
+            s.download = "Herunterladen"
+            s.later = "Später"
             return s
         }(),
         "fr": {
@@ -114,6 +126,10 @@ struct Strings {
             s.claudeExpired = "La connexion Claude a expiré. Utilisez Claude Code une fois pour la renouveler."
             s.unreachable = "Impossible d'obtenir l'utilisation de {0}. Nouvel essai dans 5 minutes."
             s.rateLimited = "{0} limite les vérifications d'utilisation. Prochaine vérification à {1}."
+            s.updateTitle = "{0} {1} est disponible"
+            s.updateMessage = "Vous avez la version {0}. Télécharger la nouvelle version depuis GitHub ?"
+            s.download = "Télécharger"
+            s.later = "Plus tard"
             return s
         }(),
         "pt": {
@@ -137,6 +153,10 @@ struct Strings {
             s.claudeExpired = "O login do Claude expirou. Use o Claude Code uma vez para renová-lo."
             s.unreachable = "Não foi possível obter o uso do {0}. Nova tentativa em 5 minutos."
             s.rateLimited = "O {0} está limitando as verificações de uso. Próxima verificação às {1}."
+            s.updateTitle = "{0} {1} está disponível"
+            s.updateMessage = "Você tem a versão {0}. Baixar a nova versão no GitHub?"
+            s.download = "Baixar"
+            s.later = "Mais tarde"
             return s
         }(),
         "ja": {
@@ -160,6 +180,10 @@ struct Strings {
             s.claudeExpired = "Claude のサインインの有効期限が切れました。Claude Code を一度使用して更新してください。"
             s.unreachable = "{0} から使用状況を取得できませんでした。5 分後に再試行します。"
             s.rateLimited = "{0} が使用状況の確認を制限しています。次の確認は {1} です。"
+            s.updateTitle = "{0} {1} が利用可能です"
+            s.updateMessage = "現在のバージョンは {0} です。GitHub から新しいバージョンをダウンロードしますか?"
+            s.download = "ダウンロード"
+            s.later = "後で"
             return s
         }(),
         "zh-Hans": {
@@ -183,6 +207,10 @@ struct Strings {
             s.claudeExpired = "Claude 登录已过期。请使用一次 Claude Code 以续期。"
             s.unreachable = "无法从 {0} 获取用量。将在 5 分钟后重试。"
             s.rateLimited = "{0} 正在限制用量查询。下次查询时间：{1}。"
+            s.updateTitle = "{0} {1} 现已推出"
+            s.updateMessage = "你当前的版本是 {0}。要从 GitHub 下载新版本吗？"
+            s.download = "下载"
+            s.later = "稍后"
             return s
         }(),
         "ko": {
@@ -206,6 +234,10 @@ struct Strings {
             s.claudeExpired = "Claude 로그인이 만료되었습니다. Claude Code를 한 번 사용하여 갱신하세요."
             s.unreachable = "{0}에서 사용량을 가져오지 못했습니다. 5분 후에 다시 시도합니다."
             s.rateLimited = "{0}에서 사용량 확인을 제한하고 있습니다. 다음 확인: {1}"
+            s.updateTitle = "{0} {1} 업데이트가 있습니다"
+            s.updateMessage = "현재 버전은 {0}입니다. GitHub에서 새 버전을 다운로드할까요?"
+            s.download = "다운로드"
+            s.later = "나중에"
             return s
         }(),
     ]
