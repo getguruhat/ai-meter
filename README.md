@@ -1,29 +1,45 @@
 # AI Meter
 
-**Your remaining Claude Code or Codex usage, right in the Mac menu bar.**
+**A fuel gauge for Claude Code and Codex, always visible on your Mac menu bar or Windows taskbar. Free and open source.**
 
-![AI Meter in the macOS menu bar showing 81% of Claude usage remaining](docs/ai-meter-menu.png)
+No account, no analytics; your token only goes to Anthropic or OpenAI.
 
-AI Meter is a free, open-source GuruHat menu-bar tool for macOS. It displays the remaining AI allowance for either Codex or Claude, depending on the provider selected in the menu, and refreshes every five minutes. It reads your existing local sign-in through the system `curl` command; if a provider changes its usage endpoint, the display will show `AI —` until updated.
+⭐ **Star this repo if it saves you a limit surprise.** This is the main project page for both the Mac and Windows versions.
+
+<!-- Demo GIF goes here once recorded: ![AI Meter demo](docs/ai-meter-demo.gif) -->
+
+| macOS menu bar | Windows taskbar |
+| --- | --- |
+| ![AI Meter in the macOS menu bar showing 81% of Claude usage remaining](docs/ai-meter-menu.png) | ![AI Meter on the Windows taskbar showing 79% of Codex usage remaining](https://raw.githubusercontent.com/getguruhat/ai-meter-windows/main/docs/ai-meter-tray.png) |
+
+It shows how much of your current Claude Code or Codex usage window is left, and when it resets, so you can plan the big refactor instead of getting cut off halfway through it. It refreshes every five minutes using the sign-in you already have.
+
+Website: https://guruhat.com/apps/ai-meter/
+
+## Download
+
+### macOS (13+, Apple silicon)
+
+- **Homebrew:** `brew install --cask getguruhat/tap/ai-meter`
+- **DMG:** download `AI-Meter-<version>-Installer.dmg` from the [latest release](../../releases/latest), open it, and drag `AI Meter.app` onto Applications. The app isn't notarized yet, so approve **Open Anyway** in System Settings › Privacy & Security the first time.
+
+### Windows (10 and 11)
+
+- **Microsoft Store:** [AI Meter on the Microsoft Store](https://apps.microsoft.com/detail/9PMFPKL6HN1L)
+- **Installer:** `AI-Meter-<version>-Windows-Setup.exe` from the [Windows releases](https://github.com/getguruhat/ai-meter-windows/releases/latest). The Windows source code lives in [getguruhat/ai-meter-windows](https://github.com/getguruhat/ai-meter-windows).
+
+## Privacy
+
+AI Meter reads the sign-in Claude Code or the Codex CLI already saved on your computer and sends that token only to the provider it belongs to: `https://api.anthropic.com/api/oauth/usage` for Claude and `https://chatgpt.com/backend-api/wham/usage` for Codex. There is no account, no analytics, and no GuruHat server. Every line of code is in this repo and the Windows repo.
+
+## How the macOS version works
+
+AI Meter displays the remaining AI allowance for either Codex or Claude, depending on the provider selected in the menu. It reads your existing local sign-in through the system `curl` command; if a provider changes its usage endpoint, the display will show `AI —` until updated.
 
 - **Codex:** remaining allowance from the ChatGPT session in `~/.codex/auth.json`.
 - **Claude:** the five-hour window from the Claude Code sign-in stored in the macOS Keychain (`Claude Code-credentials`), or `~/.claude/.credentials.json` if the Keychain entry is not found.
 
-Website: https://guruhat.com/apps/ai-meter/
-Windows version: https://github.com/getguruhat/ai-meter-windows
-GitHub organization: https://github.com/getguruhat
-
-## Download
-
-Download the latest packaged macOS installer from the [GitHub Releases page](../../releases/latest).
-
-After downloading:
-
-1. Open `AI-Meter-Installer.dmg`.
-2. Drag `AI Meter.app` onto the Applications folder shortcut.
-3. Open it from Applications and approve **Open** if macOS shows an unsigned-app warning.
-
-AI Meter is currently built for Apple silicon Macs. The release package includes the complete app bundle and does not require Swift or Xcode to be installed.
+The release package includes the complete app bundle and does not require Swift or Xcode to be installed.
 
 ## Requirements
 
