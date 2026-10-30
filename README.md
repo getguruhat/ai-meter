@@ -6,7 +6,7 @@ No account, no analytics; your token only goes to Anthropic or OpenAI.
 
 ⭐ **Star this repo if it saves you a limit surprise.** This is the main project page for both the Mac and Windows versions.
 
-<!-- Demo GIF goes here once recorded: ![AI Meter demo](docs/ai-meter-demo.gif) -->
+![AI Meter demo: the meter on the taskbar drops as Claude Code works, and the pop-up shows how much is left and exactly when it resets](docs/ai-meter-demo.gif)
 
 | macOS menu bar | Windows taskbar |
 | --- | --- |
