@@ -2,13 +2,16 @@ import SwiftUI
 import AppKit
 import Combine
 
+/// Started with plain AppKit: the menu is AppDelegate's own status item and panel, and a
+/// SwiftUI App needs a scene, which macOS opens as an empty window when the app launches.
 @main
-struct AIMeterApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-
-    var body: some Scene {
-        // The menu is AppDelegate's own status item and panel; this scene is never shown.
-        Settings { EmptyView() }
+enum AIMeterApp {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        app.run()
     }
 }
 
@@ -311,7 +314,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text(Strings.fill(Strings.current.version, "1.6.0"))
+            Text(Strings.fill(Strings.current.version, "1.6.1"))
                 .foregroundStyle(.secondary)
             Text(Strings.current.tagline)
                 .font(.headline)
