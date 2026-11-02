@@ -10,7 +10,7 @@ No account, no analytics; your token only goes to Anthropic or OpenAI.
 
 | macOS menu bar | Windows taskbar |
 | --- | --- |
-| ![AI Meter in the macOS menu bar showing 81% of Claude usage remaining](docs/ai-meter-menu.png) | ![AI Meter on the Windows taskbar showing 79% of Codex usage remaining](https://raw.githubusercontent.com/getguruhat/ai-meter-windows/main/docs/ai-meter-tray.png) |
+| ![AI Meter in the macOS menu bar: 42% of the Claude 5-hour limit and 71% of the weekly limit left, with reset times](docs/ai-meter-menu.png) | ![AI Meter on the Windows taskbar: 79% of the Codex 5-hour limit and 34% of the weekly limit left](https://raw.githubusercontent.com/getguruhat/ai-meter-windows/main/docs/ai-meter-tray.png) |
 
 It shows how much of your current Claude Code or Codex usage window is left, and when it resets, so you can plan the big refactor instead of getting cut off halfway through it. It refreshes every five minutes using the sign-in you already have.
 
