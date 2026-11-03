@@ -14,7 +14,7 @@ No account, no analytics; your token only goes to Anthropic or OpenAI.
 
 It shows how much of your current Claude Code or Codex usage window is left, and when it resets, so you can plan the big refactor instead of getting cut off halfway through it. It refreshes every five minutes using the sign-in you already have.
 
-Website: https://guruhat.com/apps/ai-meter/
+Website: https://guruhat.com/apps/ai-meter/?ref=readme-mac
 
 ## Download
 
