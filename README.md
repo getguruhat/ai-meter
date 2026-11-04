@@ -26,6 +26,13 @@ Website: https://guruhat.com/apps/ai-meter/?ref=readme-mac
 ### Windows (10 and 11)
 
 - **Microsoft Store:** [AI Meter on the Microsoft Store](https://apps.microsoft.com/detail/9PMFPKL6HN1L)
+- **Scoop:**
+
+  ```powershell
+  scoop bucket add guruhat https://github.com/getguruhat/scoop-bucket
+  scoop install guruhat/ai-meter
+  ```
+
 - **Installer:** `AI-Meter-<version>-Windows-Setup.exe` from the [Windows releases](https://github.com/getguruhat/ai-meter-windows/releases/latest). The Windows source code lives in [getguruhat/ai-meter-windows](https://github.com/getguruhat/ai-meter-windows).
 
 ## Privacy
