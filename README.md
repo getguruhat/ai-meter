@@ -4,7 +4,7 @@
 
 No account, no analytics; your token only goes to Anthropic or OpenAI.
 
-⭐ **Star this repo if it saves you a limit surprise.** This is the main project page for both the Mac and Windows versions.
+⭐ **Star this repo if it saves you a limit surprise.** This is the main project page for both the Mac and Windows versions. Questions and ideas are welcome in [Discussions](https://github.com/getguruhat/ai-meter/discussions).
 
 ![AI Meter demo: the meter on the taskbar drops as Claude Code works, and the pop-up shows how much is left and exactly when it resets](docs/ai-meter-demo.gif)
 
