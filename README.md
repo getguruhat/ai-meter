@@ -16,6 +16,8 @@ It shows how much of your current Claude Code or Codex usage window is left, and
 
 Website: https://guruhat.com/apps/ai-meter/?ref=readme-mac
 
+Guides: [how to check your Claude Code usage limit](https://guruhat.com/guides/check-claude-code-usage-limit/?ref=readme-mac) · [how to check your Codex usage limit](https://guruhat.com/guides/check-codex-usage-limit/?ref=readme-mac)
+
 ## Download
 
 ### macOS (13+, Apple silicon)
