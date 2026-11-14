@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import Combine
+import ServiceManagement
 
 /// Started with plain AppKit: the menu is AppDelegate's own status item and panel, and a
 /// SwiftUI App needs a scene, which macOS opens as an empty window when the app launches.
@@ -24,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                     wording: .init(title: text.updateTitle, message: text.updateMessage,
                                                    download: text.download, later: text.later))
         updates.start()
+        LoginItem.enableOnFirstLaunch()
         menu = MenuController(usage: UsageModel(), updates: updates)
     }
 }
@@ -303,6 +305,8 @@ final class AboutWindowController {
 
 struct AboutView: View {
     private let donationURL = URL(string: "https://www.paypal.com/donate/?hosted_button_id=FHGYWD46722JS")!
+    @AppStorage(FanfarePlayer.defaultsKey) private var fanfareEnabled = false
+    @StateObject private var login = LoginItem.Model()
 
     var body: some View {
         VStack(spacing: 14) {
@@ -314,7 +318,7 @@ struct AboutView: View {
                     .frame(width: 88, height: 88)
             }
             Text("AI Meter").font(.title2).bold()
-            Text(Strings.fill(Strings.current.version, "1.6.1"))
+            Text(Strings.fill(Strings.current.version, "1.6.2"))
                 .foregroundStyle(.secondary)
             Text(Strings.current.tagline)
                 .font(.headline)
@@ -326,9 +330,55 @@ struct AboutView: View {
             Text(Strings.current.thanks)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Toggle(Strings.current.fanfare, isOn: $fanfareEnabled)
+                .toggleStyle(.switch)
+            Toggle(Strings.current.launchAtLogin, isOn: $login.isOn)
+                .toggleStyle(.switch)
         }
         .padding(28)
         .frame(width: 390, height: 430)
+    }
+}
+
+/// Start-at-login through macOS's own login-item service. On by default: registered once on
+/// the first launch, after which the About window's switch is the only thing that changes it.
+enum LoginItem {
+    private static let seededKey = "launchAtLoginSeeded"
+
+    static var isEnabled: Bool { SMAppService.mainApp.status == .enabled }
+
+    static func setEnabled(_ on: Bool) {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+        } catch {
+            NSLog("AI Meter: could not \(on ? "enable" : "disable") start at login: \(error)")
+        }
+    }
+
+    /// Mirrors the real login-item state so the switch always shows what macOS has.
+    final class Model: ObservableObject {
+        @Published var isOn: Bool = LoginItem.isEnabled {
+            didSet { if isOn != oldValue { LoginItem.setEnabled(isOn); isOn = LoginItem.isEnabled } }
+        }
+    }
+
+    static func enableOnFirstLaunch() {
+        guard !UserDefaults.standard.bool(forKey: seededKey) else { return }
+        UserDefaults.standard.set(true, forKey: seededKey)
+        setEnabled(true)
+    }
+}
+
+/// Plays the bundled fanfare when a usage window refills to 100%, if the About window's switch is on.
+enum FanfarePlayer {
+    static let defaultsKey = "fanfareEnabled"
+    private static var sound: NSSound?
+
+    static func playIfEnabled() {
+        guard UserDefaults.standard.bool(forKey: defaultsKey),
+              let url = Bundle.main.url(forResource: "fanfare", withExtension: "mp3") else { return }
+        sound = NSSound(contentsOf: url, byReference: true)
+        sound?.play()
     }
 }
 
@@ -438,6 +488,9 @@ final class UsageModel: ObservableObject {
                 if case .signIn = result { self.needsSignIn = true } else { self.needsSignIn = false }
                 switch result {
                 case let .reading(primary, secondary, plan):
+                    if primary.remaining >= 100, let before = self.primary?.remaining, before < 100 {
+                        FanfarePlayer.playIfEnabled()
+                    }
                     self.primary = primary
                     self.secondary = secondary
                     self.plan = plan

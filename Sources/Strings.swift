@@ -37,6 +37,8 @@ struct Strings {
     var troubleshooting = "Open the troubleshooting guide ›"
     var refresh = "Refresh"
     var about = "About AI Meter"
+    var fanfare = "Play fanfare at 100%"
+    var launchAtLogin = "Start at login"
     var quit = "Quit"
     var version = "Version {0}"
     var tagline = "A GuruHat open-source tool"

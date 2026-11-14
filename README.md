@@ -91,7 +91,9 @@ Applications shortcut arranged for drag-and-drop installation.
 
 If macOS blocks the app because it is unsigned, use **System Settings > Privacy & Security > Open Anyway**, or run it from the command line with `open "AI Meter.app"` after reviewing the warning.
 
-## Start automatically at login (optional)
+## Start automatically at login
+
+AI Meter registers itself as a login item on first launch (macOS 13+). Turn it off with the **Start at login** switch in the About window. The `launchd` agent below is an alternative for setups where that is not available.
 
 The included `com.guruhat.aimeter.plist` is a `launchd` agent. Its `ProgramArguments` points to `/Users/andre/Applications/AI Meter.app`. Update that path if the app is stored elsewhere. Then install and load it with:
 
